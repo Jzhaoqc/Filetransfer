@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#define MYPORT "4950" // the port users will be connecting to       //55000?? pipe the log
+#define MYPORT "55000" // the port users will be connecting to       //55000?? pipe the log
 
 #define MAXBUFLEN 100
 
@@ -39,6 +39,7 @@ int main(void){
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
+    //Idea: find available address, bind to socket so that the client can reach this server
     //getaddrinfo allocates and init a linked list of addrinfo struct, for each network matches node and service criteria set in hints
     //might have more than 1 list node if network host is multihomed etc. all linked by ai_next field
     if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {
