@@ -13,6 +13,15 @@
 
 #define MAXBUFLEN 100
 
+void *get_in_addr(struct sockaddr *sa){
+    if (sa->sa_family == AF_INET) {
+        return &(((struct sockaddr_in*)sa)->sin_addr);
+    }
+
+    perror("not an IPv4 connection, got IPv6\n");
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
 //listener
 int main(void){
     int sockfd;
@@ -24,12 +33,12 @@ int main(void){
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET6; // set to AF_INET to use IPv4
+    memset(&hints, 0, sizeof hints);    //init struct
+    hints.ai_family = AF_INET; // set to AF_INET to use IPv4
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {         //get information from port 55000
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
