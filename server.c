@@ -33,7 +33,7 @@ int main(int argc, char *argv[]){
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
-    char* port;
+    char* port, *response;
 
     if(argc != 2){
         fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
@@ -96,6 +96,15 @@ int main(int argc, char *argv[]){
     printf("server: packet is %d bytes long\n", numbytes);
     buf[numbytes] = '\0';
     printf("server: packet contains \"%s\"\n", buf);
+
+    //check if the content is "ftp", reply with result
+    if(strcmp(buf, "ftp") == 0){ response = "yes";}
+    else{ response = "no";}
+    int responseByte;
+    if( (responseByte = sendto(sockfd, response, sizeof(response), 0, (struct sockaddr *)&client_addr, addr_len)) == -1 ){
+        perror("response sendto");
+        exit(1);
+    }
 
     close(sockfd);
 

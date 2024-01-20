@@ -39,8 +39,8 @@ int main(int argc, char *argv[]){
     //extracting hostname for DNS lookup
     hostname = argv[1];
     port = argv[2];
-    printf("port: %s\n", port);
-    printf("hostname: %s\n", hostname);
+    printf("client: input port %s\n", port);
+    printf("client: input hostname %s\n", hostname);
 
 
     memset(&hints, 0, sizeof hints);
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]){
         //ip address sanity check
         struct sockaddr_in *ip_access = (struct sockaddr_in *) p->ai_addr;
         ip = inet_ntoa(ip_access->sin_addr);
-        printf("IP from DNS lookup: %s\n", ip);
+        printf("client: IP from DNS lookup is %s\n", ip);
     
         break;
     }
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
     freeaddrinfo(servinfo);
 
     //get path to file, check existence
-    printf("Path to file for transfer: ftp <file name>\n");
+    printf("client: File to transfer: ftp <file name>\n");
     scanf("ftp %s", fileName);
     strcat(filePath,fileName);
     //printf("%s\n", filePath);
@@ -89,7 +89,21 @@ int main(int argc, char *argv[]){
         exit (1);
     }
 
-    printf("deliver: sent %d bytes to %s\n", numbytes, argv[1]);
+    printf("client: sent %d bytes to %s\n", numbytes, argv[1]);
+
+    char resposeBuf[100];
+    if ((numbytes = recvfrom(sockfd, resposeBuf, sizeof(resposeBuf), 0, p->ai_addr, &(p->ai_addrlen))) == -1) {
+        perror("recvfrom");
+        exit(1);
+    }
+
+    if(strcmp(resposeBuf, "yes") == 0){
+        printf("client: A file transfer can start.\n");
+    }else{
+        perror("server refused transfer\n");
+        exit (0);
+    }
+
     close(sockfd);
 
     return 0;
