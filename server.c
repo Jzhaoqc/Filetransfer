@@ -110,7 +110,7 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    //sanity check, can still recieve
+    // sanity check, can still recieve
     // recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&client_addr, &addr_len);
     // printf("%s", buf);
 

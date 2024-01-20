@@ -110,7 +110,7 @@ int main(int argc, char *argv[]){
         exit (0);
     }
 
-    //sanity check, can still send
+    // sanity check, can still send
     //sendto(sockfd, "can still send\n", sizeof("can still send\n"), 0, p->ai_addr, p->ai_addrlen);
 
     close(sockfd);
