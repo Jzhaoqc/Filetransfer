@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#define MYPORT "55000" // the port users will be connecting to       //55000?? pipe the log
+//#define MYPORT "55000" // the port clients will be connecting to 
 
 #define MAXBUFLEN 100
 
@@ -28,17 +28,20 @@ int main(int argc, char *argv[]){
     struct addrinfo hints, *servinfo, *p;
     int rv;
     int numbytes;
-    struct sockaddr_storage their_addr;
+    struct sockaddr_storage client_addr;
     char buf[MAXBUFLEN];
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
     char* port;
+
     if(argc != 2){
         fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
         exit(1);
     }
     port = argv[1]; //populate port from command line argument
+    // printf("%s\n", port);
+    // return 0;
 
     //this is the structure that specifies the criteria for selecting socket address returned in the list pointed by serviceinfo
     memset(&hints, 0, sizeof hints);    //init struct  
@@ -49,6 +52,7 @@ int main(int argc, char *argv[]){
     //Idea: find available address, bind to socket so that the client can reach this server
     //getaddrinfo allocates and init a linked list of addrinfo struct, for each network matches node and service criteria set in hints
     //might have more than 1 list node if network host is multihomed etc. all linked by ai_next field
+
     if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {   //should return 0 unless error
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -78,16 +82,16 @@ int main(int argc, char *argv[]){
     printf("server: listening to port %s...\n", port);
 
     //read from UDP message queue
-    addr_len = sizeof their_addr;
-    //read the first msg in queue and populate their_addr with source address
-    if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&their_addr, &addr_len)) == -1) {
+    addr_len = sizeof client_addr;
+    //read the first msg in queue and populate client_addr with source address
+    if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&client_addr, &addr_len)) == -1) {
         perror("recvfrom");
         exit(1);
     }
 
     printf("server: got packet from %s\n",
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
+        inet_ntop(client_addr.ss_family,
+            get_in_addr((struct sockaddr *)&client_addr),
             s, sizeof s));
     printf("server: packet is %d bytes long\n", numbytes);
     buf[numbytes] = '\0';

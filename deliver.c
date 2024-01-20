@@ -71,6 +71,7 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "deliver: failed to create socket\n");
         return 2;
     }
+    freeaddrinfo(servinfo);
 
     //get path to file, check existence
     printf("Path to file for transfer: ftp <file name>\n");
@@ -87,13 +88,6 @@ int main(int argc, char *argv[]){
         perror("failed to send\n");
         exit (1);
     }
-    // if ((numbytes = sendto(sockfd, argv[2], strlen(argv[2]), 0,
-    //         p->ai_addr, p->ai_addrlen)) == -1) {
-    //     perror("talker: sendto");
-    //     exit(1);
-    // }
-
-    freeaddrinfo(servinfo);
 
     printf("deliver: sent %d bytes to %s\n", numbytes, argv[1]);
     close(sockfd);
