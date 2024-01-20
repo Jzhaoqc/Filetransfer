@@ -23,7 +23,7 @@ void *get_in_addr(struct sockaddr *sa){
 }
 
 //listener
-int main(void){
+int main(int argc, char *argv[]){
     int sockfd;
     struct addrinfo hints, *servinfo, *p;
     int rv;
@@ -32,6 +32,13 @@ int main(void){
     char buf[MAXBUFLEN];
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
+
+    char* port;
+    if(argc != 2){
+        fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
+        exit(1);
+    }
+    port = argv[1]; //populate port from command line argument
 
     //this is the structure that specifies the criteria for selecting socket address returned in the list pointed by serviceinfo
     memset(&hints, 0, sizeof hints);    //init struct  
@@ -42,7 +49,7 @@ int main(void){
     //Idea: find available address, bind to socket so that the client can reach this server
     //getaddrinfo allocates and init a linked list of addrinfo struct, for each network matches node and service criteria set in hints
     //might have more than 1 list node if network host is multihomed etc. all linked by ai_next field
-    if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {   //should return 0 unless error
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -58,10 +65,8 @@ int main(void){
             perror("server: bind");
             continue;
         }
-
         break;
     }
-
     if (p == NULL) {    //check if there is a usable address found from earlier
         fprintf(stderr, "server: failed to bind socket\n");
         return 2;
@@ -69,7 +74,8 @@ int main(void){
 
     freeaddrinfo(servinfo);
 
-    printf("server: waiting to recvfrom...\n");
+
+    printf("server: listening to port %s...\n", port);
 
     //read from UDP message queue
     addr_len = sizeof their_addr;

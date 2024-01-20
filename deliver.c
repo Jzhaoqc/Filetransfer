@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#define SERVERPORT "55000" // the port users will be connecting to
+//#define SERVERPORT "55000" // the port users will be connecting to
 
 //The networking libraries can be daunting at first, but the 
 //essential functions to focus on are: socket, bind, sendto, and recvfrom.
@@ -26,16 +26,24 @@ int main(int argc, char *argv[]){
     int rv;
     int numbytes;
 
+    char *serverPort, *serverAddress;
+
     if (argc != 3) {
-        fprintf(stderr,"usage: deliver hostname message\n");
+        fprintf(stderr,"Wrong number of input: deliver <server address> <server port number>\n");
         exit(1);
     }
+
+    serverAddress = argv[1];
+    serverPort = argv[2];
+    printf("port: %s\n", serverPort);
+    printf("address: %s\n", serverAddress);
+    //return 0;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET; // set to AF_INET to use IPv4
     hints.ai_socktype = SOCK_DGRAM;
 
-    if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(argv[1], serverPort, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
