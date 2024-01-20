@@ -9,8 +9,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-//#define MYPORT "55000" // the port clients will be connecting to 
-
 #define MAXBUFLEN 100
 
 void *get_in_addr(struct sockaddr *sa){
@@ -43,8 +41,9 @@ int main(int argc, char *argv[]){
     // printf("%s\n", port);
     // return 0;
 
-    //this is the structure that specifies the criteria for selecting socket address returned in the list pointed by serviceinfo
-    memset(&hints, 0, sizeof hints);    //init struct  
+    //init and populate the structure that specifies the criteria for selecting socket address 
+    //returned in the list pointed by serviceinfo
+    memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET; // set to AF_INET to use IPv4
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
@@ -64,6 +63,7 @@ int main(int argc, char *argv[]){
             perror("server: socket");
             continue;
         }
+        //we do not want the server address to change, therefore binding to it
         if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
             perror("server: bind");
@@ -78,8 +78,12 @@ int main(int argc, char *argv[]){
 
     freeaddrinfo(servinfo);
 
-
     printf("server: listening to port %s...\n", port);
+
+
+    //after this point, the address is binded and server is listening and waiting to recieve
+    //after recieving the structure client_addr would get populated and can be used to respond
+
 
     //read from UDP message queue
     addr_len = sizeof client_addr;
@@ -95,7 +99,7 @@ int main(int argc, char *argv[]){
             s, sizeof s));
     printf("server: packet is %d bytes long\n", numbytes);
     buf[numbytes] = '\0';
-    printf("server: packet contains \"%s\"\n", buf);
+    printf("server: packet contains message \"%s\"\n", buf);
 
     //check if the content is "ftp", reply with result
     if(strcmp(buf, "ftp") == 0){ response = "yes";}
@@ -105,6 +109,10 @@ int main(int argc, char *argv[]){
         perror("response sendto");
         exit(1);
     }
+
+    //sanity check, can still recieve
+    // recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&client_addr, &addr_len);
+    // printf("%s", buf);
 
     close(sockfd);
 
