@@ -28,6 +28,8 @@ int main(int argc, char *argv[]){
 
     char* ip;
     char *port, *hostname;
+    char filePath[100] = "/nfs/ug/homes-1/z/zhaoqi56/ECE361/Filetransfer/"; 
+    char fileName[100];
 
     if (argc != 3) {
         fprintf(stderr,"Wrong number of input: deliver <server address> <server port number>\n");
@@ -45,6 +47,7 @@ int main(int argc, char *argv[]){
     hints.ai_family = AF_INET; // set to AF_INET to use IPv4
     hints.ai_socktype = SOCK_DGRAM;
 
+    //result will populate servinfo
     if ((rv = getaddrinfo(hostname, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -56,11 +59,11 @@ int main(int argc, char *argv[]){
             perror("deliver: socket");
             continue;
         }
+
         //ip address sanity check
         struct sockaddr_in *ip_access = (struct sockaddr_in *) p->ai_addr;
         ip = inet_ntoa(ip_access->sin_addr);
         printf("IP from DNS lookup: %s\n", ip);
-        return 0;
     
         break;
     }
@@ -69,12 +72,26 @@ int main(int argc, char *argv[]){
         return 2;
     }
 
-
-    if ((numbytes = sendto(sockfd, argv[2], strlen(argv[2]), 0,
-            p->ai_addr, p->ai_addrlen)) == -1) {
-        perror("talker: sendto");
-        exit(1);
+    //get path to file, check existence
+    printf("Path to file for transfer: ftp <file name>\n");
+    scanf("ftp %s", fileName);
+    strcat(filePath,fileName);
+    //printf("%s\n", filePath);
+    if(access(filePath, F_OK) != 0){
+        perror("File doesn't exist\n");
+        exit (0);
     }
+
+    char msg[4] = "ftp";
+    if((numbytes = sendto(sockfd, msg, sizeof(msg), 0, p->ai_addr, p->ai_addrlen)) == -1){
+        perror("failed to send\n");
+        exit (1);
+    }
+    // if ((numbytes = sendto(sockfd, argv[2], strlen(argv[2]), 0,
+    //         p->ai_addr, p->ai_addrlen)) == -1) {
+    //     perror("talker: sendto");
+    //     exit(1);
+    // }
 
     freeaddrinfo(servinfo);
 
