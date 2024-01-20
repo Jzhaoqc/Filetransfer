@@ -26,24 +26,26 @@ int main(int argc, char *argv[]){
     int rv;
     int numbytes;
 
-    char *serverPort, *serverAddress;
+    char* ip;
+    char *port, *hostname;
 
     if (argc != 3) {
         fprintf(stderr,"Wrong number of input: deliver <server address> <server port number>\n");
         exit(1);
     }
 
-    serverAddress = argv[1];
-    serverPort = argv[2];
-    printf("port: %s\n", serverPort);
-    printf("address: %s\n", serverAddress);
-    //return 0;
+    //extracting hostname for DNS lookup
+    hostname = argv[1];
+    port = argv[2];
+    printf("port: %s\n", port);
+    printf("hostname: %s\n", hostname);
+
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET; // set to AF_INET to use IPv4
     hints.ai_socktype = SOCK_DGRAM;
 
-    if ((rv = getaddrinfo(argv[1], serverPort, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(hostname, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -54,14 +56,19 @@ int main(int argc, char *argv[]){
             perror("deliver: socket");
             continue;
         }
+        //ip address sanity check
+        struct sockaddr_in *ip_access = (struct sockaddr_in *) p->ai_addr;
+        ip = inet_ntoa(ip_access->sin_addr);
+        printf("IP from DNS lookup: %s\n", ip);
+        return 0;
     
         break;
     }
-
     if (p == NULL) {
         fprintf(stderr, "deliver: failed to create socket\n");
         return 2;
     }
+
 
     if ((numbytes = sendto(sockfd, argv[2], strlen(argv[2]), 0,
             p->ai_addr, p->ai_addrlen)) == -1) {
