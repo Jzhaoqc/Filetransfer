@@ -28,7 +28,7 @@ int main(int argc, char *argv[]){
 
     char* ip;
     char *port, *hostname;
-    char filePath[100] = "/nfs/ug/homes-1/z/zhaoqi56/ECE361/Filetransfer/"; 
+    char filePath[100] = "./"; 
     char fileName[100];
     char cmd[100]={0};
 
