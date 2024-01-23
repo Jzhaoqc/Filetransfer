@@ -30,6 +30,7 @@ int main(int argc, char *argv[]){
     char *port, *hostname;
     char filePath[100] = "/nfs/ug/homes-1/z/zhaoqi56/ECE361/Filetransfer/"; 
     char fileName[100];
+    char cmd[100]={0};
 
     if (argc != 3) {
         fprintf(stderr,"Wrong number of input: deliver <server address> <server port number>\n");
@@ -79,12 +80,16 @@ int main(int argc, char *argv[]){
 
     //get path to file, check existence
     printf("client: File to transfer: ftp <file name>\n");
-    scanf("ftp %s", fileName);
+    scanf("%s %s", cmd, fileName);
+    if(strcmp(cmd,"ftp") != 0){     //check if the first command from user is "ftp" print error if not
+        perror("Wrong command: not ftp\n");
+        exit (1);
+    }
     strcat(filePath,fileName);
     //printf("%s\n", filePath);
     if(access(filePath, F_OK) != 0){
         perror("File doesn't exist\n");
-        exit (0);
+        exit (1);
     }
 
     //sending message "ftp" to server to request for file transfer
@@ -107,7 +112,7 @@ int main(int argc, char *argv[]){
         printf("client: A file transfer can start.\n");
     }else{
         perror("server refused transfer\n");
-        exit (0);
+        exit (1);
     }
 
     // sanity check, can still send

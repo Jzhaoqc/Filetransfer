@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
     int rv;
     int numbytes;
     struct sockaddr_storage client_addr;
-    char buf[MAXBUFLEN];
+    char buf[MAXBUFLEN] = {0};
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
@@ -93,6 +93,12 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
+    // //debug
+    // printf("%s\n", buf);
+    // int result = strcmp(buf, "ftp");
+    // printf("%d\n", result);
+    // return 0;
+
     printf("server: got packet from %s\n",
         inet_ntop(client_addr.ss_family,
             get_in_addr((struct sockaddr *)&client_addr),
@@ -101,10 +107,15 @@ int main(int argc, char *argv[]){
     buf[numbytes] = '\0';
     printf("server: packet contains message \"%s\"\n", buf);
 
+
     //check if the content is "ftp", reply with result
-    if(strcmp(buf, "ftp") == 0){ response = "yes";}
-    else{ response = "no";}
-    int responseByte;
+    if(strcmp(buf, "ftp") == 0){ 
+        response = "yes";
+    }else{ 
+        response = "no";
+    }
+
+    ssize_t responseByte;
     if( (responseByte = sendto(sockfd, response, sizeof(response), 0, (struct sockaddr *)&client_addr, addr_len)) == -1 ){
         perror("response sendto");
         exit(1);
