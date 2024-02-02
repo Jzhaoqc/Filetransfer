@@ -125,6 +125,14 @@ int main(int argc, char *argv[]){
     // recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&client_addr, &addr_len);
     // printf("%s", buf);
 
+    //after server allows to be connected, we wait again to recieve file from client
+    /*
+    todo: 
+        recvfrom
+        build file from fragment
+    */
+
+
     close(sockfd);
 
     return 0;

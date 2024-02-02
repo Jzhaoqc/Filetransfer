@@ -11,13 +11,15 @@
 
 //#define SERVERPORT "55000" // the port users will be connecting to
 
-//The networking libraries can be daunting at first, but the 
-//essential functions to focus on are: socket, bind, sendto, and recvfrom.
-
-
-//The "Datagram Sockets" section under "Client-Server Background" is the most
-//relevant sample code for this lab since you're required to use
-//UDP. 
+// define packet, for a file that is larger than 1000 bytes, 
+// needs to be fragmented and use multiple packets
+struct packet {
+    unsigned int total_frag;
+    unsigned int frag_no;
+    unsigned int size;
+    char* filename;
+    char filedata[1000];
+}
 
 //talker
 int main(int argc, char *argv[]){
@@ -117,6 +119,16 @@ int main(int argc, char *argv[]){
 
     // sanity check, can still send
     //sendto(sockfd, "can still send\n", sizeof("can still send\n"), 0, p->ai_addr, p->ai_addrlen);
+
+    //after established connection with the server, we now get the file, 
+    //transform it to packet(s) if data is larger than 1000bytes, and send to server
+    /*
+    todo:
+        open file
+        transform into socket struct
+        sendto server
+    */
+
 
     close(sockfd);
 
