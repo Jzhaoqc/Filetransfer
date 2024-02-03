@@ -10,6 +10,7 @@
 #include <netdb.h>
 
 //#define SERVERPORT "55000" // the port users will be connecting to
+#define MAX_ARRAY_SIZE 1000
 
 // define packet, for a file that is larger than 1000 bytes, 
 // needs to be fragmented and use multiple packets
@@ -19,6 +20,33 @@ struct packet {
     unsigned int size;
     char* filename;
     char filedata[1000];
+};
+
+//global array, used to store packets of files to send to server
+struct packet packets[MAX_ARRAY_SIZE];
+
+
+size_t findSize(FILE *fptr){
+
+    if(fptr == NULL){
+        perror("Can not open file");
+        exit(1);
+    }
+    if(fseek(fptr,0,SEEK_END)<0){
+        fclose(fptr);
+        perror("fseek failure");
+        exit(1);
+    }
+     
+    return ftell(fptr);
+}
+
+int findPacketNumber(size_t size){
+    if((size%1000)!=0){
+        return (size/1000)+1;
+    }else{
+        return size/1000;
+    }
 }
 
 //talker
@@ -30,7 +58,7 @@ int main(int argc, char *argv[]){
 
     char* ip;
     char *port, *hostname;
-    char filePath[100] = "./"; 
+    char filePath[100] = "./send/"; 
     char fileName[100];
     char cmd[100]={0};
 
@@ -88,7 +116,7 @@ int main(int argc, char *argv[]){
         exit (1);
     }
     strcat(filePath,fileName);
-    //printf("%s\n", filePath);
+    printf("client: trying to access: %s\n", filePath);
     if(access(filePath, F_OK) != 0){
         perror("File doesn't exist\n");
         exit (1);
@@ -128,6 +156,21 @@ int main(int argc, char *argv[]){
         transform into socket struct
         sendto server
     */
+
+    FILE *fptr;
+    fptr = fopen(filePath, "rb");   //rb stand for read binary
+    size_t fileSize = findSize(fptr);
+    int totalPackets = findPacketNumber(fileSize);
+
+    for(int i=1; i<totalPackets; i++){
+        struct packet newPacket = {0};
+        newPacket.total_frag = totalPackets;
+        newPacket.frag_no = i;
+        //finish filling in the rest of the fields
+
+        packets[i-1]=
+    }
+    
 
 
     close(sockfd);
