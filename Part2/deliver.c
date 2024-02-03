@@ -211,6 +211,8 @@ int main(int argc, char *argv[]){
             exit (1);
         }
     }
+    printf("client: Sent %s to %s, %d packets total.\n", fileName, hostname, totalFrag);
+
 
 
     close(sockfd);
