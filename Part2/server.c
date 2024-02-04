@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/stat.h>
 
 #define MAXBUFLEN 100
 #define MAX_ARRAY_SIZE 1000
@@ -25,15 +26,21 @@ struct packet {
 struct packet receivedPackets[MAX_ARRAY_SIZE]={0};
 
 //function to recieve and read from UDP message queue and populate receivedPackets[]
-void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t addr_len){
-
-    char recvBuffer[2000]={0};
+void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t addr_len) {
+    char recvBuffer[2000] = {0};
     int recvBufferIndex = -1;
     
+    // Define the directory path
+    const char* directory = "./received_files";
 
-    //keep receiving packets and build file until it is the last one
-    do{
-        //this portion reads from the UDP queue and populate the receivedPackets[] buffer
+    // Create the directory if it doesn't exist
+    if (mkdir(directory, 0777) == -1 && errno != EEXIST) {
+        perror("mkdir");
+        exit(EXIT_FAILURE);
+    }
+
+    // Keep receiving packets and build the file until it is the last one
+    do {
         recvBufferIndex++;
         size_t receivedBytes = 0;
         if ((receivedBytes = recvfrom(sockfd, recvBuffer, 2000 , 0, (struct sockaddr *)&client_addr, &addr_len)) == -1) {
@@ -41,35 +48,39 @@ void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t a
             exit(1);
         }
 
-            //parse the string received
         int itemMatched = 0;
         char filenameBuffer[1024];
-            //take each value from the receive buffer and populate the struct in the global packet buffer
-        if((itemMatched = sscanf(recvBuffer,"%u:%u:%u:%[^:]:", &(receivedPackets[recvBufferIndex].total_frag), &(receivedPackets[recvBufferIndex].frag_no),
-                                                           &(receivedPackets[recvBufferIndex].size), filenameBuffer ))<0){
-            perror("unable to scan from string recieved.\n");
+
+        if((itemMatched = sscanf(recvBuffer, "%u:%u:%u:%[^:]:", &(receivedPackets[recvBufferIndex].total_frag), &(receivedPackets[recvBufferIndex].frag_no),
+                                                          &(receivedPackets[recvBufferIndex].size), filenameBuffer)) < 0) {
+            perror("unable to scan from string received.\n");
             exit(1);
         }
 
-            // Find the position to start reading data
         int offset = snprintf(NULL, 0, "%u:%u:%u:%s:", receivedPackets[recvBufferIndex].total_frag, receivedPackets[recvBufferIndex].frag_no, 
-                                                       receivedPackets[recvBufferIndex].size, filenameBuffer);
+                                                  receivedPackets[recvBufferIndex].size, filenameBuffer);
         receivedPackets[recvBufferIndex].filename = strdup(filenameBuffer);
         memcpy(receivedPackets[recvBufferIndex].filedata, recvBuffer+offset, receivedPackets[recvBufferIndex].size);
 
+        // Construct the file path
+        char filepath[1024];
+        snprintf(filepath, sizeof(filepath), "%s/%s", directory, receivedPackets[0].filename);
 
-        //now that we have populated the buffer, we could use that piece of data to build that part of the file
-        FILE *file = fopen(receivedPackets[0].filename, "ab");
-        if(file == NULL){
-            perror("Cannot create new file.\n");
-            exit(1);
-        }
-        fwrite(receivedPackets[recvBufferIndex].filedata, 1, receivedPackets[recvBufferIndex].size, file);
-        fclose(file);
+        //debug
+        printf("\n%d\n",recvBufferIndex);
 
-    }while( (receivedPackets[recvBufferIndex].total_frag) != (receivedPackets[recvBufferIndex].frag_no));
-    
+        // Open the file in binary append mode
+        // FILE *file = fopen(filepath, "ab");
+        // if(file == NULL){
+        //     perror("Cannot create new file.\n");
+        //     exit(1);
+        // }
+        // fwrite(receivedPackets[recvBufferIndex].filedata, 1, receivedPackets[recvBufferIndex].size, file);
+        // fclose(file);
+
+    } while(receivedPackets[recvBufferIndex].total_frag != receivedPackets[recvBufferIndex].frag_no);
 }
+
 
 
 void *get_in_addr(struct sockaddr *sa){
