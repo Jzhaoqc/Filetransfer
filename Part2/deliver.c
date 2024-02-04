@@ -79,7 +79,7 @@ void populatePacketsBuffer(FILE* fptr, char* fileName, int totalFrag){
 
 //converting the packet struct into actual packet with fields seperated by ":"
 void constructPacket(int index, char*sendBuffer){
-    int headerlen = snprintf(sendBuffer,2000,"%u:%u:%u:%s", packetsBuffer[index].total_frag, 
+    int headerlen = snprintf(sendBuffer,2000,"%u:%u:%u:%s:", packetsBuffer[index].total_frag, 
                                     packetsBuffer[index].frag_no, packetsBuffer[index].size, 
                                     packetsBuffer[index].filename);
 
@@ -214,6 +214,7 @@ int main(int argc, char *argv[]){
     char sendBuffer[2000]={0};
     for(int i=0; i<totalFrag; i++){
         constructPacket(i,sendBuffer);
+
 
         if((numbytes = sendto(sockfd, sendBuffer, sizeof(sendBuffer), 0, p->ai_addr, p->ai_addrlen)) == -1){
             perror("failed to send packet send buffer\n");

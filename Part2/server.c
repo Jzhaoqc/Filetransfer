@@ -70,13 +70,13 @@ void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t a
         printf("\n%d\n",recvBufferIndex);
 
         // Open the file in binary append mode
-        // FILE *file = fopen(filepath, "ab");
-        // if(file == NULL){
-        //     perror("Cannot create new file.\n");
-        //     exit(1);
-        // }
-        // fwrite(receivedPackets[recvBufferIndex].filedata, 1, receivedPackets[recvBufferIndex].size, file);
-        // fclose(file);
+        FILE *file = fopen(filepath, "w");
+        if(file == NULL){
+            perror("Cannot create new file.\n");
+            exit(1);
+        }
+        fwrite(receivedPackets[recvBufferIndex].filedata, 1, receivedPackets[recvBufferIndex].size, file);
+        fclose(file);
 
     } while(receivedPackets[recvBufferIndex].total_frag != receivedPackets[recvBufferIndex].frag_no);
 }
@@ -105,11 +105,15 @@ int main(int argc, char *argv[]){
 
     char* port, *response;
 
-    if(argc != 2){
-        fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
-        exit(1);
-    }
-    port = argv[1]; //populate port from command line argument
+    // if(argc != 2){
+    //     fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
+    //     exit(1);
+    // }
+    // port = argv[1]; //populate port from command line argument
+
+    port = "55000";
+
+
     // printf("%s\n", port);
     // return 0;
 
