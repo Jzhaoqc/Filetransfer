@@ -38,8 +38,9 @@ size_t findSize(FILE *fptr){
         perror("fseek failure");
         exit(1);
     }
-     
-    return ftell(fptr);
+    size_t size = ftell(fptr);
+    printf("client: file size is %d\n", size);
+    return size;
 }
 
 int findPacketNumber(size_t size){
@@ -55,11 +56,14 @@ void populatePacketsBuffer(FILE* fptr, char* fileName, int totalFrag){
     int bufferIndex = 0;
 
     while((bytesRead = fread(packetsBuffer[bufferIndex].filedata,1,1000,fptr))>0){
+        
         packetsBuffer[bufferIndex].total_frag = totalFrag;
         packetsBuffer[bufferIndex].frag_no = bufferIndex+1;
         packetsBuffer[bufferIndex].size = bytesRead;
-        packetsBuffer[bufferIndex].filename = fileName;
+        strcpy(packetsBuffer[bufferIndex].filename,fileName);
+        
         bufferIndex++;
+        
         if(bufferIndex > MAX_ARRAY_SIZE){
             perror("Packet Buffer too small\n");
             exit (1);
