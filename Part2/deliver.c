@@ -55,22 +55,27 @@ void populatePacketsBuffer(FILE* fptr, char* fileName, int totalFrag){
     size_t bytesRead = 0;
     int bufferIndex = 0;
 
-    while((bytesRead = fread(packetsBuffer[bufferIndex].filedata,1,1000,fptr))>0){
+    while ((bytesRead = fread(packetsBuffer[bufferIndex].filedata, 1, 1000, fptr)) > 0){
+        packetsBuffer[bufferIndex].filename = malloc(strlen(fileName) + 1); // Allocate memory
+        if (packetsBuffer[bufferIndex].filename == NULL) {
+            perror("Memory allocation failed\n");
+            exit(1);
+        }
+        strcpy(packetsBuffer[bufferIndex].filename, fileName);
         
         packetsBuffer[bufferIndex].total_frag = totalFrag;
-        packetsBuffer[bufferIndex].frag_no = bufferIndex+1;
+        packetsBuffer[bufferIndex].frag_no = bufferIndex + 1;
         packetsBuffer[bufferIndex].size = bytesRead;
-        strcpy(packetsBuffer[bufferIndex].filename,fileName);
-        
+
         bufferIndex++;
         
-        if(bufferIndex > MAX_ARRAY_SIZE){
+        if (bufferIndex >= MAX_ARRAY_SIZE){
             perror("Packet Buffer too small\n");
             exit (1);
         }
     }
-
 }
+
 
 //converting the packet struct into actual packet with fields seperated by ":"
 void constructPacket(int index, char*sendBuffer){
