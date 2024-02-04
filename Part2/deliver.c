@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include<time.h>
 
 //#define SERVERPORT "55000" // the port users will be connecting to
 #define MAX_ARRAY_SIZE 1000
@@ -210,6 +211,12 @@ int main(int argc, char *argv[]){
     fclose(fptr);
 
     //after this point we have the buffer with all the packet structs transformed into sendable format
+
+    //we start the timer for measuring the round trip time
+    struct timespec start, end;
+    long long time_difference;
+    clock_gettime(CLOCK_MONOTONIC, &start); // define the timespec, and get the start time stamp
+
     //then start sending
     char sendBuffer[2000]={0};
     for(int i=0; i<totalFrag; i++){
@@ -222,6 +229,23 @@ int main(int argc, char *argv[]){
         }
     }
     printf("client: Sent %s to %s, %d packets total.\n", fileName, hostname, totalFrag);
+
+
+    if ((numbytes = recvfrom(sockfd, resposeBuf, sizeof(resposeBuf), 0, p->ai_addr, &(p->ai_addrlen))) == -1) { //NOTE: the p->ai_addr field should have an empty struct
+        perror("recvfrom");                                                                                     //which will then gets populated, reused p since they should be the same
+        exit(1);
+    }
+
+    if(strcmp(resposeBuf, "ACK") == 0){
+        printf("client: Server acknowledged.\n");
+    }else{
+        perror("client: Server did not acknowledge.\n");
+        exit (1);
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    time_difference = (end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec); //sec returns seconds, nsec for nano_seconds, more pricise
+    printf("client: RTT is %f milliseconds\n", time_difference / 1000000.0);// convert nanoseoncd to milisecond
 
     close(sockfd);
 
