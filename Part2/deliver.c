@@ -78,7 +78,7 @@ void populatePacketsBuffer(FILE* fptr, char* fileName, int totalFrag){
 
 
 //converting the packet struct into actual packet with fields seperated by ":"
-void constructPacket(int index, char*sendBuffer){
+void constructPacket(int index, char sendBuffer[]){
     int headerlen = snprintf(sendBuffer,2000,"%u:%u:%u:%s:", packetsBuffer[index].total_frag, 
                                     packetsBuffer[index].frag_no, packetsBuffer[index].size, 
                                     packetsBuffer[index].filename);
@@ -103,8 +103,10 @@ int main(int argc, char *argv[]){
     char *port, *hostname;
     char filePath[100] = "./send/"; 
     char fileName[100];
+
     char cmd[100]={0};
 
+    //check number of input
     if (argc != 3) {
         fprintf(stderr,"Wrong number of input: deliver <server address> <server port number>\n");
         exit(1);
@@ -113,6 +115,7 @@ int main(int argc, char *argv[]){
     //extracting hostname from command line input for DNS lookup
     hostname = argv[1];
     port = argv[2];
+
     printf("client: input port %s\n", port);
     printf("client: input hostname %s\n", hostname);
 
@@ -153,11 +156,14 @@ int main(int argc, char *argv[]){
 
     //get path to file, check existence
     printf("client: File to transfer: ftp <file name>\n");
+    
+    //debug comment out
     scanf("%s %s", cmd, fileName);
     if(strcmp(cmd,"ftp") != 0){     //check if the first command from user is "ftp" print error if not
         perror("Wrong command: not ftp\n");
         exit (1);
     }
+
     strcat(filePath,fileName);
     printf("client: trying to access: %s\n", filePath);
     if(access(filePath, F_OK) != 0){
@@ -193,12 +199,6 @@ int main(int argc, char *argv[]){
 
     //after established connection with the server, we now get the file, 
     //transform it to packet(s) if data is larger than 1000bytes, and send to server
-    /*
-    todo:
-        open file
-        transform into socket struct
-        sendto server
-    */
 
     //open file
     FILE *fptr = fopen(filePath, "rb");   //rb stand for read binary
@@ -222,8 +222,6 @@ int main(int argc, char *argv[]){
         }
     }
     printf("client: Sent %s to %s, %d packets total.\n", fileName, hostname, totalFrag);
-
-
 
     close(sockfd);
 

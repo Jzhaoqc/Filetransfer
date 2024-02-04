@@ -25,11 +25,7 @@ struct packet {
 
 struct packet receivedPackets[MAX_ARRAY_SIZE]={0};
 
-//function to recieve and read from UDP message queue and populate receivedPackets[]
-void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t addr_len) {
-    char recvBuffer[2000] = {0};
-    int recvBufferIndex = -1;
-    
+void writeFile(){
     // Define the directory path
     const char* directory = "./received_files";
 
@@ -38,7 +34,32 @@ void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t a
         perror("mkdir");
         exit(EXIT_FAILURE);
     }
+ 
+    // Construct the file path
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "%s/%s", directory, receivedPackets[0].filename);
 
+    // Open the file in binary append mode
+    FILE *file = fopen(filepath, "w");
+    if(file == NULL){
+        perror("Cannot create new file.\n");
+        exit(1);
+    }
+    
+    //move data to file created
+    for(int i=0; i<receivedPackets[i].total_frag; i++){
+        fwrite(receivedPackets[i].filedata, 1, receivedPackets[i].size, file);
+    }
+    fclose(file);
+    
+    printf("server: finished writing to file.\n");
+}
+
+//function to recieve and read from UDP message queue and populate receivedPackets[]
+void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t addr_len) {
+    char recvBuffer[2000] = {0};
+    int recvBufferIndex = -1;
+    
     // Keep receiving packets and build the file until it is the last one
     do {
         recvBufferIndex++;
@@ -51,37 +72,26 @@ void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t a
         int itemMatched = 0;
         char filenameBuffer[1024];
 
+        //after we take the message from UDP buffer to our own, we scan from the receive buffer and see if the format is correct
+        // populate the first few fields within the struct in the global receivePackets[] buffer
         if((itemMatched = sscanf(recvBuffer, "%u:%u:%u:%[^:]:", &(receivedPackets[recvBufferIndex].total_frag), &(receivedPackets[recvBufferIndex].frag_no),
                                                           &(receivedPackets[recvBufferIndex].size), filenameBuffer)) < 0) {
             perror("unable to scan from string received.\n");
             exit(1);
         }
 
+        //copy the file name field and copy the data portion
         int offset = snprintf(NULL, 0, "%u:%u:%u:%s:", receivedPackets[recvBufferIndex].total_frag, receivedPackets[recvBufferIndex].frag_no, 
                                                   receivedPackets[recvBufferIndex].size, filenameBuffer);
         receivedPackets[recvBufferIndex].filename = strdup(filenameBuffer);
         memcpy(receivedPackets[recvBufferIndex].filedata, recvBuffer+offset, receivedPackets[recvBufferIndex].size);
 
-        // Construct the file path
-        char filepath[1024];
-        snprintf(filepath, sizeof(filepath), "%s/%s", directory, receivedPackets[0].filename);
-
         //debug
-        printf("\n%d\n",recvBufferIndex);
-
-        // Open the file in binary append mode
-        FILE *file = fopen(filepath, "w");
-        if(file == NULL){
-            perror("Cannot create new file.\n");
-            exit(1);
-        }
-        fwrite(receivedPackets[recvBufferIndex].filedata, 1, receivedPackets[recvBufferIndex].size, file);
-        fclose(file);
+        printf("server: receiving packet number %d out of %d.\n",receivedPackets[recvBufferIndex].frag_no, receivedPackets[recvBufferIndex].total_frag);
 
     } while(receivedPackets[recvBufferIndex].total_frag != receivedPackets[recvBufferIndex].frag_no);
+
 }
-
-
 
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET) {
@@ -105,14 +115,11 @@ int main(int argc, char *argv[]){
 
     char* port, *response;
 
-    // if(argc != 2){
-    //     fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
-    //     exit(1);
-    // }
-    // port = argv[1]; //populate port from command line argument
-
-    port = "55000";
-
+    if(argc != 2){
+        fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
+        exit(1);
+    }
+    port = argv[1]; //populate port from command line argument
 
     // printf("%s\n", port);
     // return 0;
@@ -202,15 +209,11 @@ int main(int argc, char *argv[]){
     // printf("%s", buf);
 
     //after server allows to be connected, we wait again to recieve file from client
-    /*
-    todo: 
-        recvfrom
-        build file from fragment
-    */
 
     while(1){
 
         receivePackets(sockfd, client_addr, addr_len);
+        writeFile();
         //send ack 
         char ack_buffer[]="ACK";
         if( (responseByte = sendto(sockfd, ack_buffer, sizeof(ack_buffer), 0, (struct sockaddr *)&client_addr, addr_len)) == -1 ){
