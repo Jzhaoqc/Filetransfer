@@ -11,7 +11,7 @@
 #include<time.h>
 
 //#define SERVERPORT "55000" // the port users will be connecting to
-#define MAX_ARRAY_SIZE 1000
+#define MAX_ARRAY_SIZE 5000
 
 // define packet, for a file that is larger than 1000 bytes, 
 // needs to be fragmented and use multiple packets
