@@ -52,7 +52,7 @@ int findPacketNumber(size_t size){
     }
 }
 
-void populatePacketsBuffer(FILE* fptr, char* fileName, int totalFrag, int currentFrag){
+void populatePacketStruct(FILE* fptr, char* fileName, int totalFrag, int currentFrag){
     size_t bytesRead = 0;
     int bufferIndex = 0;
 
@@ -205,11 +205,17 @@ int main(int argc, char *argv[]){
     //part3
     for(int i=0; i<totalFrag; i++){
         //construct the packet
-        populatePacketsBuffer(fptr, fileName, totalFrag, i+1);
+        populatePacketStruct(fptr, fileName, totalFrag, i+1);
         //then transfrom it into sendable form
         char sendBuffer[2000] = {0};
         constructPacket(sendBuffer);
+
+
         //send packet
+        //we start the timer for measuring the round trip time
+        struct timespec start, end;
+        long long time_difference;
+        clock_gettime(CLOCK_MONOTONIC, &start); // define the timespec, and get the start time stamp
         if((numbytes = sendto(sockfd, sendBuffer, sizeof(sendBuffer), 0, p->ai_addr, p->ai_addrlen)) == -1){
             printf("failed to send packet send buffer #%d\n", i+1);
             exit (1);
@@ -228,21 +234,12 @@ int main(int argc, char *argv[]){
             exit (1);
         }
 
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        time_difference = (end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec); //sec returns seconds, nsec for nano_seconds, more pricise
+        printf("client: RTT is %f milliseconds\n", time_difference / 1000000.0);// convert nanoseoncd to milisecond
+
     }
     fclose(fptr);
-
-    //after this point we have the buffer with all the packet structs transformed into sendable format
-
-    //we start the timer for measuring the round trip time
-    // struct timespec start, end;
-    // long long time_difference;
-    // clock_gettime(CLOCK_MONOTONIC, &start); // define the timespec, and get the start time stamp
-
-
-    // clock_gettime(CLOCK_MONOTONIC, &end);
-    // time_difference = (end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec); //sec returns seconds, nsec for nano_seconds, more pricise
-    // printf("client: RTT is %f milliseconds\n", time_difference / 1000000.0);// convert nanoseoncd to milisecond
-
 
     close(sockfd);
 
