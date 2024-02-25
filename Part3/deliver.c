@@ -97,10 +97,12 @@ int main(int argc, char *argv[]){
 
     char* ip;
     char *port, *hostname;
-    char filePath[100] = "./send/"; 
-    char fileName[100];
+    char filePath[100] = "./send/";
 
+    //debug commented out 
+    char fileName[100];
     char cmd[100]={0};
+
 
     //check number of input
     if (argc != 3) {
@@ -216,6 +218,7 @@ int main(int argc, char *argv[]){
         constructPacket(sendBuffer);
 
         //part3
+        retransmit:         //if packet dropped, the code will come back here so that it will re-start the timer and send the packet again
         FD_ZERO(&readfds);
         FD_SET(sockfd, &readfds);
         timeout.tv_sec = 1;
@@ -235,8 +238,7 @@ int main(int argc, char *argv[]){
             exit(1);
         } else if (activity == 0) {
             printf("client: Timeout occurred. Retransmitting packet...\n");
-            i--; // Retry sending the packet
-            continue;
+            goto retransmit;        //timeout, goto the retransmit label above and resend packet
         }
 
 

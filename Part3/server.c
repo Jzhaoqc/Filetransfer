@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #define MAXBUFLEN 100
 #define MAX_ARRAY_SIZE 5000
@@ -80,11 +81,11 @@ int main(int argc, char *argv[]){
 
     char* port, *response;
 
-    if(argc != 2){
-        fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
-        exit(1);
-    }
-    port = argv[1]; //populate port from command line argument
+    // if(argc != 2){
+    //     fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
+    //     exit(1);
+    // }
+    port = "55000"; //populate port from command line argument
 
     // printf("%s\n", port);
     // return 0;
@@ -197,21 +198,27 @@ int main(int argc, char *argv[]){
             exit(1);
         }
 
+        //part3
+        bool dropped = 0;
+
         while (receivedPackets.frag_no <= receivedPackets.total_frag) {
-            // move data to file created
-            fwrite(receivedPackets.filedata, 1, receivedPackets.size, file);
-            // send ack 
-            char ack_buffer[] = "ACK";
-            if ((responseByte = sendto(sockfd, ack_buffer, sizeof(ack_buffer), 0, (struct sockaddr *)&client_addr, addr_len)) == -1) {
-                perror("response sendto");
-                exit(1);
-            }
+            if( (receivedPackets.frag_no == 5) && (dropped == 0) ){
+                dropped = 1;
+            }else{
+                // move data to file created
+                fwrite(receivedPackets.filedata, 1, receivedPackets.size, file);
+                // send ack 
+                char ack_buffer[] = "ACK";
+                if ((responseByte = sendto(sockfd, ack_buffer, sizeof(ack_buffer), 0, (struct sockaddr *)&client_addr, addr_len)) == -1) {
+                    perror("response sendto");
+                    exit(1);
+                }
 
-            // If the last packet is received, break out of the loop
-            if (receivedPackets.frag_no == receivedPackets.total_frag) {
-                break;
+                // If the last packet is received, break out of the loop
+                if (receivedPackets.frag_no == receivedPackets.total_frag) {
+                    break;
+                }
             }
-
             // Receive the next packet
             receivePackets(sockfd, client_addr, addr_len);
         }
