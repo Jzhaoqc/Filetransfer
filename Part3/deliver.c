@@ -221,8 +221,8 @@ int main(int argc, char *argv[]){
         retransmit:         //if packet dropped, the code will come back here so that it will re-start the timer and send the packet again
         FD_ZERO(&readfds);
         FD_SET(sockfd, &readfds);
-        timeout.tv_sec = 1;
-        timeout.tv_usec = 0;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 50000;
 
         //send packet
         if((numbytes = sendto(sockfd, sendBuffer, sizeof(sendBuffer), 0, p->ai_addr, p->ai_addrlen)) == -1){

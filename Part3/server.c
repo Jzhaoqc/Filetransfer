@@ -26,6 +26,19 @@ struct packet {
 
 struct packet receivedPackets={0};
 
+//funtion used to drop packets randomly from 1-100
+int generate_random_number() {
+    static int initialized = 0;
+
+    if (!initialized) {
+        // Seed the random number generator with the current time
+        srand(time(NULL));
+        initialized = 1;
+    }
+
+    return rand() % 100 + 1;
+}
+
 //function to recieve and read from UDP message queue and populate receivedPackets[]
 void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t addr_len) {
     char recvBuffer[2000] = {0};
@@ -81,11 +94,11 @@ int main(int argc, char *argv[]){
 
     char* port, *response;
 
-    // if(argc != 2){
-    //     fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
-    //     exit(1);
-    // }
-    port = "55000"; //populate port from command line argument
+    if(argc != 2){
+        fprintf(stderr,"Wrong number of input: server <UDP listen port>\n");
+        exit(1);
+    }
+    port = argv[1]; //populate port from command line argument
 
     // printf("%s\n", port);
     // return 0;
@@ -199,11 +212,10 @@ int main(int argc, char *argv[]){
         }
 
         //part3
-        bool dropped = 0;
-
+        int packets_dropped = 0;
         while (receivedPackets.frag_no <= receivedPackets.total_frag) {
-            if( (receivedPackets.frag_no == 5) && (dropped == 0) ){
-                dropped = 1;
+            if( generate_random_number() < 20 ){    //if random number is smaller than 50, we drop the packet
+                packets_dropped++;
             }else{
                 // move data to file created
                 fwrite(receivedPackets.filedata, 1, receivedPackets.size, file);
