@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <time.h>
+#include <signal.h>
 
 //#define SERVERPORT "55000" // the port users will be connecting to
 #define MAX_ARRAY_SIZE 5000
@@ -27,6 +28,12 @@ struct packet {
 //global array, used to store packets of files to send to server
 struct packet packetsBuffer={0};
 
+int ack_received = 0;
+
+void alarm_handler(int signum) {
+    printf("client: Timeout occurred. Retransmitting packet...\n");
+    ack_received = -1; // Set ack_received to -1 to indicate timeout
+}
 
 size_t findSize(FILE *fptr){
 
@@ -203,12 +210,18 @@ int main(int argc, char *argv[]){
     fseek(fptr, 0, SEEK_SET); //reset stream position to beginning and begin fragmentation
 
     //part3
+    signal(SIGALRM, alarm_handler);
+
     for(int i=0; i<totalFrag; i++){
         //construct the packet
         populatePacketStruct(fptr, fileName, totalFrag, i+1);
         //then transfrom it into sendable form
         char sendBuffer[2000] = {0};
         constructPacket(sendBuffer);
+
+
+        alarm(1);
+        ack_received = 0;
 
 
         //send packet
