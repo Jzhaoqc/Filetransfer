@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <time.h>
-#include <signal.h>
+#include <sys/time.h>
 
 //#define SERVERPORT "55000" // the port users will be connecting to
 #define MAX_ARRAY_SIZE 5000
@@ -28,12 +28,6 @@ struct packet {
 //global array, used to store packets of files to send to server
 struct packet packetsBuffer={0};
 
-int ack_received = 0;
-
-void alarm_handler(int signum) {
-    printf("client: Timeout occurred. Retransmitting packet...\n");
-    ack_received = -1; // Set ack_received to -1 to indicate timeout
-}
 
 size_t findSize(FILE *fptr){
 
@@ -210,7 +204,9 @@ int main(int argc, char *argv[]){
     fseek(fptr, 0, SEEK_SET); //reset stream position to beginning and begin fragmentation
 
     //part3
-    signal(SIGALRM, alarm_handler);
+    fd_set readfds;
+    struct timeval timeout;
+
 
     for(int i=0; i<totalFrag; i++){
         //construct the packet
@@ -219,21 +215,30 @@ int main(int argc, char *argv[]){
         char sendBuffer[2000] = {0};
         constructPacket(sendBuffer);
 
-
-        alarm(1);
-        ack_received = 0;
-
+        //part3
+        FD_ZERO(&readfds);
+        FD_SET(sockfd, &readfds);
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
 
         //send packet
-        //we start the timer for measuring the round trip time
-        struct timespec start, end;
-        long long time_difference;
-        clock_gettime(CLOCK_MONOTONIC, &start); // define the timespec, and get the start time stamp
         if((numbytes = sendto(sockfd, sendBuffer, sizeof(sendBuffer), 0, p->ai_addr, p->ai_addrlen)) == -1){
             printf("failed to send packet send buffer #%d\n", i+1);
             exit (1);
         }
         printf("client: Sent packet #%d of %s to %s, %d packets total.\n", i+1, fileName, hostname, totalFrag);
+
+        //part3
+        int activity = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
+        if (activity == -1) {
+            perror("select error");
+            exit(1);
+        } else if (activity == 0) {
+            printf("client: Timeout occurred. Retransmitting packet...\n");
+            i--; // Retry sending the packet
+            continue;
+        }
+
 
         //recieve ACK from server
         if ((numbytes = recvfrom(sockfd, resposeBuf, sizeof(resposeBuf), 0, p->ai_addr, &(p->ai_addrlen))) == -1) { //NOTE: the p->ai_addr field should have an empty struct
@@ -246,10 +251,6 @@ int main(int argc, char *argv[]){
             perror("client: Server did not acknowledge.\n");
             exit (1);
         }
-
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        time_difference = (end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec); //sec returns seconds, nsec for nano_seconds, more pricise
-        printf("client: RTT is %f milliseconds\n", time_difference / 1000000.0);// convert nanoseoncd to milisecond
 
     }
     fclose(fptr);
