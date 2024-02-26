@@ -57,6 +57,9 @@
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
-    "socket.h": "c"
+    "socket.h": "c",
+    "types.h": "c",
+    "inet.h": "c",
+    "string.h": "c"
   }
 }
