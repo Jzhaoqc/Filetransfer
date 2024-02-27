@@ -8,8 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <time.h>
-#include <sys/time.h>
+#include<time.h>
 
 //#define SERVERPORT "55000" // the port users will be connecting to
 #define MAX_ARRAY_SIZE 5000
@@ -26,7 +25,7 @@ struct packet {
 
 
 //global array, used to store packets of files to send to server
-struct packet packetsBuffer={0};
+struct packet packetsBuffer[MAX_ARRAY_SIZE]={0};
 
 
 size_t findSize(FILE *fptr){
@@ -53,38 +52,44 @@ int findPacketNumber(size_t size){
     }
 }
 
-void populatePacketStruct(FILE* fptr, char* fileName, int totalFrag, int currentFrag){
+void populatePacketsBuffer(FILE* fptr, char* fileName, int totalFrag){
     size_t bytesRead = 0;
     int bufferIndex = 0;
 
-    if ((bytesRead = fread(packetsBuffer.filedata, 1, 1000, fptr)) > 0){
-        packetsBuffer.filename = malloc(strlen(fileName) + 1); // Allocate memory
-        if (packetsBuffer.filename == NULL) {
+    while ((bytesRead = fread(packetsBuffer[bufferIndex].filedata, 1, 1000, fptr)) > 0){
+        packetsBuffer[bufferIndex].filename = malloc(strlen(fileName) + 1); // Allocate memory
+        if (packetsBuffer[bufferIndex].filename == NULL) {
             perror("Memory allocation failed\n");
             exit(1);
         }
-        strcpy(packetsBuffer.filename, fileName);
+        strcpy(packetsBuffer[bufferIndex].filename, fileName);
         
-        packetsBuffer.total_frag = totalFrag;
-        packetsBuffer.frag_no = currentFrag;
-        packetsBuffer.size = bytesRead;
-    }
+        packetsBuffer[bufferIndex].total_frag = totalFrag;
+        packetsBuffer[bufferIndex].frag_no = bufferIndex + 1;
+        packetsBuffer[bufferIndex].size = bytesRead;
 
+        bufferIndex++;
+        
+        if (bufferIndex >= MAX_ARRAY_SIZE){
+            perror("Packet Buffer too small\n");
+            exit (1);
+        }
+    }
 }
 
 
 //converting the packet struct into actual packet with fields seperated by ":"
-void constructPacket(char sendBuffer[]){
-    int headerlen = snprintf(sendBuffer,2000,"%u:%u:%u:%s:", packetsBuffer.total_frag, 
-                                    packetsBuffer.frag_no, packetsBuffer.size, 
-                                    packetsBuffer.filename);
+void constructPacket(int index, char sendBuffer[]){
+    int headerlen = snprintf(sendBuffer,2000,"%u:%u:%u:%s:", packetsBuffer[index].total_frag, 
+                                    packetsBuffer[index].frag_no, packetsBuffer[index].size, 
+                                    packetsBuffer[index].filename);
 
     if(headerlen == 0){
         perror("unable to snprint\n");
         exit (1);
     }
 
-    memcpy(sendBuffer+headerlen, packetsBuffer.filedata, packetsBuffer.size);
+    memcpy(sendBuffer+headerlen, packetsBuffer[index].filedata, packetsBuffer[index].size);
     return;
 }
 
@@ -97,12 +102,10 @@ int main(int argc, char *argv[]){
 
     char* ip;
     char *port, *hostname;
-    char filePath[100] = "./send/";
-
-    //debug commented out 
+    char filePath[100] = "./send/"; 
     char fileName[100];
-    char cmd[100]={0};
 
+    char cmd[100]={0};
 
     //check number of input
     if (argc != 3) {
@@ -170,13 +173,6 @@ int main(int argc, char *argv[]){
     }
 
     //sending message "ftp" to server to request for file transfer
-    //this is the probe, we start the timer and measure the RRT to base everything else on
-    
-    //we start the timer for measuring the round trip time
-    struct timespec start, end;
-    long long time_difference;
-    clock_gettime(CLOCK_MONOTONIC, &start); // define the timespec, and get the start time stamp
-
     char msg[4] = "ftp";
     if((numbytes = sendto(sockfd, msg, sizeof(msg), 0, p->ai_addr, p->ai_addrlen)) == -1){
         perror("failed to send ftp\n");
@@ -191,11 +187,6 @@ int main(int argc, char *argv[]){
         perror("recvfrom");                                                                                     //which will then gets populated, reused p since they should be the same
         exit(1);
     }
-
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    time_difference = (end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec); //sec returns seconds, nsec for nano_seconds, more pricise
-    time_difference /= 1000.0;
-    printf("client: RTT is %d microseconds\n", time_difference);// convert nanoseoncd to milisecond
 
     if(strcmp(resposeBuf, "yes") == 0){
         printf("client: Connected. File transfer starts.\n");
@@ -216,58 +207,45 @@ int main(int argc, char *argv[]){
     int totalFrag = findPacketNumber(fileSize);
     //parse content, populate packet buffer and close at the end
     fseek(fptr, 0, SEEK_SET); //reset stream position to beginning and begin fragmentation
-
-    //part3
-    fd_set readfds;
-    struct timeval timeout;
-
-
-    for(int i=0; i<totalFrag; i++){
-        //construct the packet
-        populatePacketStruct(fptr, fileName, totalFrag, i+1);
-        //then transfrom it into sendable form
-        char sendBuffer[2000] = {0};
-        constructPacket(sendBuffer);
-
-        //part3
-        retransmit:         //if packet dropped, the code will come back here so that it will re-start the timer and send the packet again
-        FD_ZERO(&readfds);
-        FD_SET(sockfd, &readfds);
-        timeout.tv_sec = 0;
-        timeout.tv_usec = time_difference*2;
-
-        //send packet
-        if((numbytes = sendto(sockfd, sendBuffer, sizeof(sendBuffer), 0, p->ai_addr, p->ai_addrlen)) == -1){
-            printf("failed to send packet send buffer #%d\n", i+1);
-            exit (1);
-        }
-        printf("client: Sent packet #%d of %s to %s, %d packets total.\n", i+1, fileName, hostname, totalFrag);
-
-        //part3
-        int activity = poll(sockfd + 1, &readfds, NULL, NULL, &timeout);
-        if (activity == -1) {
-            perror("select error");
-            exit(1);
-        } else if (activity == 0) {
-            printf("client: Timeout occurred. Retransmitting packet...\n");
-            goto retransmit;        //timeout, goto the retransmit label above and resend packet
-        }
-
-
-        //recieve ACK from server
-        if ((numbytes = recvfrom(sockfd, resposeBuf, sizeof(resposeBuf), 0, p->ai_addr, &(p->ai_addrlen))) == -1) { //NOTE: the p->ai_addr field should have an empty struct
-            perror("recvfrom");                                                                                     //which will then gets populated, reused p since they should be the same
-            exit(1);
-        }
-        if(strcmp(resposeBuf, "ACK") == 0){
-            printf("client: Server acknowledged.\n");
-        }else{
-            perror("client: Server did not acknowledge.\n");
-            exit (1);
-        }
-
-    }
+    populatePacketsBuffer(fptr, fileName, totalFrag);
     fclose(fptr);
+
+    //after this point we have the buffer with all the packet structs transformed into sendable format
+
+    //we start the timer for measuring the round trip time
+    struct timespec start, end;
+    long long time_difference;
+    clock_gettime(CLOCK_MONOTONIC, &start); // define the timespec, and get the start time stamp
+
+    //then start sending
+    char sendBuffer[2000]={0};
+    for(int i=0; i<totalFrag; i++){
+        constructPacket(i,sendBuffer);
+
+
+        if((numbytes = sendto(sockfd, sendBuffer, sizeof(sendBuffer), 0, p->ai_addr, p->ai_addrlen)) == -1){
+            perror("failed to send packet send buffer\n");
+            exit (1);
+        }
+    }
+    printf("client: Sent %s to %s, %d packets total.\n", fileName, hostname, totalFrag);
+
+
+    if ((numbytes = recvfrom(sockfd, resposeBuf, sizeof(resposeBuf), 0, p->ai_addr, &(p->ai_addrlen))) == -1) { //NOTE: the p->ai_addr field should have an empty struct
+        perror("recvfrom");                                                                                     //which will then gets populated, reused p since they should be the same
+        exit(1);
+    }
+
+    if(strcmp(resposeBuf, "ACK") == 0){
+        printf("client: Server acknowledged.\n");
+    }else{
+        perror("client: Server did not acknowledge.\n");
+        exit (1);
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    time_difference = (end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec); //sec returns seconds, nsec for nano_seconds, more pricise
+    printf("client: RTT is %f milliseconds\n", time_difference / 1000000.0);// convert nanoseoncd to milisecond
 
     close(sockfd);
 

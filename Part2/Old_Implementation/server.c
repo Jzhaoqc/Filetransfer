@@ -23,38 +23,73 @@ struct packet {
     char filedata[1000];
 };
 
-struct packet receivedPackets={0};
+struct packet receivedPackets[MAX_ARRAY_SIZE]={0};
+
+void writeFile(){
+    // Define the directory path
+    const char* directory = "./received_files";
+
+    // Create the directory if it doesn't exist
+    if (mkdir(directory, 0777) == -1 && errno != EEXIST) {
+        perror("mkdir");
+        exit(EXIT_FAILURE);
+    }
+ 
+    // Construct the file path
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "%s/%s", directory, receivedPackets[0].filename);
+
+    // Open the file in binary append mode
+    FILE *file = fopen(filepath, "w");
+    if(file == NULL){
+        perror("Cannot create new file.\n");
+        exit(1);
+    }
+    
+    //move data to file created
+    for(int i=0; i<receivedPackets[i].total_frag; i++){
+        fwrite(receivedPackets[i].filedata, 1, receivedPackets[i].size, file);
+    }
+    fclose(file);
+    
+    printf("server: finished writing to file.\n");
+}
 
 //function to recieve and read from UDP message queue and populate receivedPackets[]
 void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t addr_len) {
     char recvBuffer[2000] = {0};
+    int recvBufferIndex = -1;
     
     // Keep receiving packets and build the file until it is the last one
-    size_t receivedBytes = 0;
-    if ((receivedBytes = recvfrom(sockfd, recvBuffer, 2000 , 0, (struct sockaddr *)&client_addr, &addr_len)) == -1) {
-        perror("recvfrom for packets");
-        exit(1);
-    }
+    do {
+        recvBufferIndex++;
+        size_t receivedBytes = 0;
+        if ((receivedBytes = recvfrom(sockfd, recvBuffer, 2000 , 0, (struct sockaddr *)&client_addr, &addr_len)) == -1) {
+            perror("recvfrom for packets");
+            exit(1);
+        }
 
-    int itemMatched = 0;
-    char filenameBuffer[1024];
+        int itemMatched = 0;
+        char filenameBuffer[1024];
 
-    //after we take the message from UDP buffer to our own, we scan from the receive buffer and see if the format is correct
-    // populate the first few fields within the struct in the global receivePackets[] buffer
-    if((itemMatched = sscanf(recvBuffer, "%u:%u:%u:%[^:]:", &(receivedPackets.total_frag), &(receivedPackets.frag_no),
-                                                        &(receivedPackets.size), filenameBuffer)) < 0) {
-        perror("unable to scan from string received.\n");
-        exit(1);
-    }
+        //after we take the message from UDP buffer to our own, we scan from the receive buffer and see if the format is correct
+        // populate the first few fields within the struct in the global receivePackets[] buffer
+        if((itemMatched = sscanf(recvBuffer, "%u:%u:%u:%[^:]:", &(receivedPackets[recvBufferIndex].total_frag), &(receivedPackets[recvBufferIndex].frag_no),
+                                                          &(receivedPackets[recvBufferIndex].size), filenameBuffer)) < 0) {
+            perror("unable to scan from string received.\n");
+            exit(1);
+        }
 
-    //copy the file name field and copy the data portion
-    int offset = snprintf(NULL, 0, "%u:%u:%u:%s:", receivedPackets.total_frag, receivedPackets.frag_no, 
-                                                receivedPackets.size, filenameBuffer);
-    receivedPackets.filename = strdup(filenameBuffer);
-    memcpy(receivedPackets.filedata, recvBuffer+offset, receivedPackets.size);
+        //copy the file name field and copy the data portion
+        int offset = snprintf(NULL, 0, "%u:%u:%u:%s:", receivedPackets[recvBufferIndex].total_frag, receivedPackets[recvBufferIndex].frag_no, 
+                                                  receivedPackets[recvBufferIndex].size, filenameBuffer);
+        receivedPackets[recvBufferIndex].filename = strdup(filenameBuffer);
+        memcpy(receivedPackets[recvBufferIndex].filedata, recvBuffer+offset, receivedPackets[recvBufferIndex].size);
 
-    //debug
-    printf("server: received packet number %d out of %d.\n",receivedPackets.frag_no, receivedPackets.total_frag);
+        //debug
+        printf("server: receiving packet number %d out of %d.\n",receivedPackets[recvBufferIndex].frag_no, receivedPackets[recvBufferIndex].total_frag);
+
+    } while(receivedPackets[recvBufferIndex].total_frag != receivedPackets[recvBufferIndex].frag_no);
 
 }
 
@@ -169,55 +204,22 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
+    // sanity check, can still recieve
+    // recvfrom(sockfd, buf, MAXBUFLEN-1 , 0, (struct sockaddr *)&client_addr, &addr_len);
+    // printf("%s", buf);
+
     //after server allows to be connected, we wait again to recieve file from client
 
-    // Create the directory if it doesn't exist
-    const char* directory = "./received_files";
-    if (mkdir(directory, 0777) == -1 && errno != EEXIST) {
-        perror("mkdir");
-        exit(EXIT_FAILURE);
-    }
-
     while(1){
-        
-        //idea: the server always wait for packets to receive. it first check if there is a receive dir, if not it makes one
-        //      then, it calls receivePackets which receives the VERY FIRST packet, this is because we need to do fopen for new file
-        //      then, it goes into the while loop to receive the rest of the packet and send ACK with each one.
 
-
-        //make a new file for the first packet received
         receivePackets(sockfd, client_addr, addr_len);
-        // Construct the file path
-        char filepath[1024];
-        snprintf(filepath, sizeof(filepath), "%s/%s", directory, receivedPackets.filename);
-        // Open the file in binary append mode
-        FILE *file = fopen(filepath, "w");
-        if(file == NULL){
-            perror("Cannot create new file.\n");
+        writeFile();
+        //send ack 
+        char ack_buffer[]="ACK";
+        if( (responseByte = sendto(sockfd, ack_buffer, sizeof(ack_buffer), 0, (struct sockaddr *)&client_addr, addr_len)) == -1 ){
+            perror("response sendto");
             exit(1);
         }
-
-        while (receivedPackets.frag_no <= receivedPackets.total_frag) {
-            // move data to file created
-            fwrite(receivedPackets.filedata, 1, receivedPackets.size, file);
-            // send ack 
-            char ack_buffer[] = "ACK";
-            if ((responseByte = sendto(sockfd, ack_buffer, sizeof(ack_buffer), 0, (struct sockaddr *)&client_addr, addr_len)) == -1) {
-                perror("response sendto");
-                exit(1);
-            }
-
-            // If the last packet is received, break out of the loop
-            if (receivedPackets.frag_no == receivedPackets.total_frag) {
-                break;
-            }
-
-            // Receive the next packet
-            receivePackets(sockfd, client_addr, addr_len);
-        }
-
-        fclose(file);
-        printf("server: finished writing to file.\n");
 
     }
 
