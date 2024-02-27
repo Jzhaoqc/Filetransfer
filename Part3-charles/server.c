@@ -59,58 +59,91 @@ void writeFile(){
 //function to recieve and read from UDP message queue and populate receivedPackets[]
 void receivePackets(int sockfd, struct sockaddr_storage client_addr, socklen_t addr_len) {
     char recvBuffer[2000] = {0};
-    int recvBufferIndex = -1;
+    int recvBufferIndex = 0;
     ssize_t ackRespByte;
+    char ack_buffer[8];
+
+    //always process first packet
+    size_t receivedBytes = 0;
+
+    //send first ack to client for first packet
+    snprintf(ack_buffer, 8, "ACK%d", recvBufferIndex);
+    if( (ackRespByte = sendto(sockfd, ack_buffer, sizeof(ack_buffer), 0, (struct sockaddr *)&client_addr, addr_len)) == -1 ){
+        perror("response sendto");
+        exit(1);
+    }
     
-    // Keep receiving packets and build the file until it is the last one
+    if ((receivedBytes = recvfrom(sockfd, recvBuffer, 2000 , 0, (struct sockaddr *)&client_addr, &addr_len)) == -1) {
+            perror("recvfrom for packets");
+            exit(1);
+    }
+
+    int itemMatched = 0;
+    char filenameBuffer[1024];
+
+    //after we take the message from UDP buffer to our own, we scan from the receive buffer and see if the format is correct
+    // populate the first few fields within the struct in the global receivePackets[] buffer
+    if((itemMatched = sscanf(recvBuffer, "%u:%u:%u:%[^:]:", &(receivedPackets[recvBufferIndex].total_frag), &(receivedPackets[recvBufferIndex].frag_no),
+                                                        &(receivedPackets[recvBufferIndex].size), filenameBuffer)) < 0) {
+         perror("unable to scan from string received.\n");
+        exit(1);
+    }
+
+    //copy the file name field and copy the data portion
+    int offset = snprintf(NULL, 0, "%u:%u:%u:%s:", receivedPackets[recvBufferIndex].total_frag, receivedPackets[recvBufferIndex].frag_no, 
+                                            receivedPackets[recvBufferIndex].size, filenameBuffer);
+    receivedPackets[recvBufferIndex].filename = strdup(filenameBuffer);
+    memcpy(receivedPackets[recvBufferIndex].filedata, recvBuffer+offset, receivedPackets[recvBufferIndex].size);
+
+
+    
+    // Keep receiving rest of packets and build the file until it is the last one
     do {
         recvBufferIndex++;
         size_t receivedBytes = 0;
 
-        //Process packet
-        if ((receivedBytes = recvfrom(sockfd, recvBuffer, 2000 , 0, (struct sockaddr *)&client_addr, &addr_len)) == -1) {
-            perror("recvfrom for packets");
-            exit(1);
-        }
+        //drops 70 percent of packet
+        if (rand()%10 > 7) {
 
-        int itemMatched = 0;
-        char filenameBuffer[1024];
-
-        //after we take the message from UDP buffer to our own, we scan from the receive buffer and see if the format is correct
-        // populate the first few fields within the struct in the global receivePackets[] buffer
-        if((itemMatched = sscanf(recvBuffer, "%u:%u:%u:%[^:]:", &(receivedPackets[recvBufferIndex].total_frag), &(receivedPackets[recvBufferIndex].frag_no),
-                                                          &(receivedPackets[recvBufferIndex].size), filenameBuffer)) < 0) {
-            perror("unable to scan from string received.\n");
-            exit(1);
-        }
-
-        //copy the file name field and copy the data portion
-        int offset = snprintf(NULL, 0, "%u:%u:%u:%s:", receivedPackets[recvBufferIndex].total_frag, receivedPackets[recvBufferIndex].frag_no, 
-                                                receivedPackets[recvBufferIndex].size, filenameBuffer);
-        receivedPackets[recvBufferIndex].filename = strdup(filenameBuffer);
-        memcpy(receivedPackets[recvBufferIndex].filedata, recvBuffer+offset, receivedPackets[recvBufferIndex].size);
-
-        //drops 70 percent of packets
-        //if (rand()%10 > 7) {
             //send ack to client for packet
-            char ack_buffer[8];
             snprintf(ack_buffer, 8, "ACK%d", recvBufferIndex);
             if( (ackRespByte = sendto(sockfd, ack_buffer, sizeof(ack_buffer), 0, (struct sockaddr *)&client_addr, addr_len)) == -1 ){
                 perror("response sendto");
                 exit(1);
             }
+
+            //Process packet
+            if ((receivedBytes = recvfrom(sockfd, recvBuffer, 2000 , 0, (struct sockaddr *)&client_addr, &addr_len)) == -1) {
+                perror("recvfrom for packets");
+                exit(1);
+            }
+
+            int itemMatched = 0;
+            char filenameBuffer[1024];
+
+            //after we take the message from UDP buffer to our own, we scan from the receive buffer and see if the format is correct
+            // populate the first few fields within the struct in the global receivePackets[] buffer
+            if((itemMatched = sscanf(recvBuffer, "%u:%u:%u:%[^:]:", &(receivedPackets[recvBufferIndex].total_frag), &(receivedPackets[recvBufferIndex].frag_no),
+                                                            &(receivedPackets[recvBufferIndex].size), filenameBuffer)) < 0) {
+                perror("unable to scan from string received.\n");
+                exit(1);
+            }
+
+            //copy the file name field and copy the data portion
+            int offset = snprintf(NULL, 0, "%u:%u:%u:%s:", receivedPackets[recvBufferIndex].total_frag, receivedPackets[recvBufferIndex].frag_no, 
+                                                    receivedPackets[recvBufferIndex].size, filenameBuffer);
+            receivedPackets[recvBufferIndex].filename = strdup(filenameBuffer);
+            memcpy(receivedPackets[recvBufferIndex].filedata, recvBuffer+offset, receivedPackets[recvBufferIndex].size);
+
             //debug
             printf("server: receiving packet number %d out of %d.\n",receivedPackets[recvBufferIndex].frag_no, receivedPackets[recvBufferIndex].total_frag);
-        //}else{
-            //recvBufferIndex--;
-        //}
+        }else{
+            recvBufferIndex--;
+            printf("packet number %d dropped.\n", recvBufferIndex);
+        }
         
-       
-
     } while(receivedPackets[recvBufferIndex].total_frag != receivedPackets[recvBufferIndex].frag_no);
     printf("exit packet receiving. Total_frag: %d. Frag_no: %d.\n", receivedPackets[recvBufferIndex].total_frag, receivedPackets[recvBufferIndex].frag_no);
-
-
 }
 
 void *get_in_addr(struct sockaddr *sa){

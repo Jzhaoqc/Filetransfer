@@ -12,7 +12,7 @@
 
 //#define SERVERPORT "55000" // the port users will be connecting to
 #define MAX_ARRAY_SIZE 5000
-#define TIME_LIMIT 300 //timeout limit for packet ack in miliseconds
+#define TIME_LIMIT 1000000 //timeout limit for packet ack in nanoseconds
 
 // define packet, for a file that is larger than 1000 bytes, 
 // needs to be fragmented and use multiple packets
@@ -226,6 +226,12 @@ int main(int argc, char *argv[]){
     for(int i=0; i<totalFrag; i++){
         constructPacket(i,sendBuffer);
 
+        //make the answer key for the right acknowledgement
+        snprintf(corr_ack_buffer, 8, "ACK%d", i);
+        ifTimeout = 0; //reset timeout flag for every packet
+        long long packetTimeLapsed = 0;
+
+
         //first packet send try
         if((numbytes = sendto(sockfd, sendBuffer, sizeof(sendBuffer), 0, p->ai_addr, p->ai_addrlen)) == -1){
             perror("failed to send packet send buffer\n");
@@ -234,11 +240,7 @@ int main(int argc, char *argv[]){
 
         //get packet first transmission time
         clock_gettime(CLOCK_MONOTONIC, &packetStart);
-        //make the answer key for the right acknowledgement
-        snprintf(corr_ack_buffer, 8, "ACK%d", i);
-        ifTimeout = 0; //reset timeout flag for every packet
-        double packetTimeLapsed = 0;
-
+        
         do{
             //read responseBuf
             if ((numbytes = recvfrom(sockfd, resposeBuf, sizeof(resposeBuf), 0, p->ai_addr, &(p->ai_addrlen))) == -1) { //NOTE: the p->ai_addr field should have an empty struct
@@ -248,7 +250,7 @@ int main(int argc, char *argv[]){
 
             //calculate time difference
             clock_gettime(CLOCK_MONOTONIC, &packetCurr);
-            packetTimeLapsed = ((long long)(packetCurr.tv_sec - packetStart.tv_sec) * 1000000000LL + (packetCurr.tv_nsec - packetStart.tv_nsec)) / 1000000.0;
+            packetTimeLapsed = ((long long)(packetCurr.tv_sec - packetStart.tv_sec) * 1000000000LL + (packetCurr.tv_nsec - packetStart.tv_nsec));
             ifTimeout = (packetTimeLapsed >= TIME_LIMIT) ? 1 : 0;
 
 
@@ -269,6 +271,7 @@ int main(int argc, char *argv[]){
             }
 
             printf("ACK for packet %d received %s\n", i, resposeBuf);
+            printf("packetTimeLapsed: %lld \n", packetTimeLapsed);
 
         }while(strcmp(resposeBuf, corr_ack_buffer) != 0); //exits only if acknowledgment matches
         
