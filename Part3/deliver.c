@@ -14,6 +14,8 @@
 //#define SERVERPORT "55000" // the port users will be connecting to
 #define MAX_ARRAY_SIZE 5000
 
+int time_different = 25000;
+
 // define packet, for a file that is larger than 1000 bytes, 
 // needs to be fragmented and use multiple packets
 struct packet {
@@ -234,7 +236,7 @@ int main(int argc, char *argv[]){
         FD_ZERO(&readfds);
         FD_SET(sockfd, &readfds);
         timeout.tv_sec = 0;
-        timeout.tv_usec = time_difference*2;
+        timeout.tv_usec = time_difference*5;
 
         //send packet
         if((numbytes = sendto(sockfd, sendBuffer, sizeof(sendBuffer), 0, p->ai_addr, p->ai_addrlen)) == -1){
@@ -244,7 +246,7 @@ int main(int argc, char *argv[]){
         printf("client: Sent packet #%d of %s to %s, %d packets total.\n", i+1, fileName, hostname, totalFrag);
 
         //part3
-        int activity = poll(sockfd + 1, &readfds, NULL, NULL, &timeout);
+        int activity = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
         if (activity == -1) {
             perror("select error");
             exit(1);

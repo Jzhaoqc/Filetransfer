@@ -217,14 +217,14 @@ int main(int argc, char *argv[]){
             if( generate_random_number() < 20 ){    //if random number is smaller than 50, we drop the packet
                 packets_dropped++;
             }else{
-                // move data to file created
-                fwrite(receivedPackets.filedata, 1, receivedPackets.size, file);
                 // send ack 
                 char ack_buffer[] = "ACK";
                 if ((responseByte = sendto(sockfd, ack_buffer, sizeof(ack_buffer), 0, (struct sockaddr *)&client_addr, addr_len)) == -1) {
                     perror("response sendto");
                     exit(1);
                 }
+                // move data to file created
+                fwrite(receivedPackets.filedata, 1, receivedPackets.size, file);
 
                 // If the last packet is received, break out of the loop
                 if (receivedPackets.frag_no == receivedPackets.total_frag) {
